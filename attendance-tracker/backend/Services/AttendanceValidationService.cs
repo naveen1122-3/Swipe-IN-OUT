@@ -16,21 +16,52 @@ namespace backend.Services
 
             for (int i = 0; i < swipeLogs.Count - 1; i += 2)
             {
-                if (swipeLogs[i].SwipeType == "IN" &&
-                    swipeLogs[i + 1].SwipeType == "OUT")
+                var swipeIn = swipeLogs[i];
+                var swipeOut = swipeLogs[i + 1];
+
+                if (swipeIn.EmployeeId != swipeOut.EmployeeId)
                 {
-                    totalMinutes +=
-                        (int)(swipeLogs[i + 1].SwipeTime -
-                              swipeLogs[i].SwipeTime)
-                        .TotalMinutes;
+                    return new AttendanceResultDto
+                    {
+                        EmployeeId = swipeIn.EmployeeId,
+                        TotalOfficeHours = 0,
+                        AttendanceStatus = "INVALID_EMPLOYEE_SEQUENCE"
+                    };
                 }
+
+                if (swipeIn.SwipeType != "IN")
+                {
+                    return new AttendanceResultDto
+                    {
+                        EmployeeId = swipeIn.EmployeeId,
+                        TotalOfficeHours = 0,
+                        AttendanceStatus = "INVALID_IN_SWIPE"
+                    };
+                }
+
+                if (swipeOut.SwipeType != "OUT")
+                {
+                    return new AttendanceResultDto
+                    {
+                        EmployeeId = swipeIn.EmployeeId,
+                        TotalOfficeHours = 0,
+                        AttendanceStatus = "INVALID_OUT_SWIPE"
+                    };
+                }
+
+                totalMinutes +=
+                    (int)(swipeOut.SwipeTime -
+                          swipeIn.SwipeTime)
+                    .TotalMinutes;
             }
 
-            double totalHours = Math.Round(totalMinutes / 60.0, 2);
+            double totalHours =
+                Math.Round(totalMinutes / 60.0, 2);
 
-            string status = totalHours < 1
-                ? "SHORT_PRESENCE"
-                : "VALID";
+            string status =
+                totalHours >= 5
+                ? "ELIGIBLE_FOR_TOPUP"
+                : "INSUFFICIENT_PRESENCE";
 
             return new AttendanceResultDto
             {
