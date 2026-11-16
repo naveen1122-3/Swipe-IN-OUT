@@ -7,17 +7,22 @@ namespace backend.Services
     {
         public TopUpResponseDto ProcessRequest(
             decimal swipeHours,
-            decimal requestedTopUpHours,
+            decimal dailyTopUpHours,
+            int attendedDaysThisWeek,
             ApprovalConfiguration config)
         {
             var response = new TopUpResponseDto
             {
                 SwipeHours = swipeHours,
-                RequestedTopUpHours = requestedTopUpHours,
-                TotalHours = swipeHours + requestedTopUpHours,
+                DailyTopUpHours = dailyTopUpHours,
+                TotalHours = swipeHours + dailyTopUpHours,
                 RequiredSwipeHours = config.RequiredSwipeHours,
-                AllowedTopUpHours = config.AllowedTopUpHours,
-                RequiredTotalHours = config.RequiredTotalHours
+                RequiredOfficeHours = config.RequiredOfficeHours,
+                RequiredTotalHours = config.RequiredSwipeHours
+                    + config.RequiredOfficeHours,
+                RequiredOfficeDaysPerWeek =
+                    config.RequiredOfficeDaysPerWeek,
+                AttendedDaysThisWeek = attendedDaysThisWeek
             };
 
             if (swipeHours < config.RequiredSwipeHours)
@@ -31,26 +36,36 @@ namespace backend.Services
                 return response;
             }
 
-            if (requestedTopUpHours >
-                config.AllowedTopUpHours)
+            if (dailyTopUpHours < config.RequiredOfficeHours)
             {
                 response.ApprovalStatus =
                     "PENDING_MANAGER_REVIEW";
 
                 response.Reason =
-                    "Requested top-up exceeds limit.";
+                    "Required top-up hours not met.";
 
                 return response;
             }
 
-            if (response.TotalHours <
-                config.RequiredTotalHours)
+            if (response.TotalHours < response.RequiredTotalHours)
             {
                 response.ApprovalStatus =
                     "PENDING_MANAGER_REVIEW";
 
                 response.Reason =
-                    "Total hours requirement not met.";
+                    "Required total hours not met.";
+
+                return response;
+            }
+
+            if (attendedDaysThisWeek <
+                config.RequiredOfficeDaysPerWeek)
+            {
+                response.ApprovalStatus =
+                    "PENDING_MANAGER_REVIEW";
+
+                response.Reason =
+                    "Required office days this week not met.";
 
                 return response;
             }

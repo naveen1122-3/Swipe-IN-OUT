@@ -23,11 +23,17 @@ namespace backend.Controllers
         {
             var existing =
                 _context.ApprovalConfigurations
-                        .FirstOrDefault();
+                        .FirstOrDefault(configuration =>
+                            configuration.ManagerId == dto.ManagerId
+                            && configuration.ProjectId == dto.ProjectId);
 
             if (existing == null)
             {
-                existing = new ApprovalConfiguration();
+                existing = new ApprovalConfiguration
+                {
+                    ManagerId = dto.ManagerId,
+                    ProjectId = dto.ProjectId
+                };
 
                 _context.ApprovalConfigurations
                     .Add(existing);
@@ -36,11 +42,14 @@ namespace backend.Controllers
             existing.RequiredSwipeHours =
                 dto.RequiredSwipeHours;
 
-            existing.AllowedTopUpHours =
-                dto.AllowedTopUpHours;
+            existing.RequiredOfficeHours =
+                dto.RequiredOfficeHours;
 
             existing.RequiredTotalHours =
-                dto.RequiredTotalHours;
+                dto.RequiredSwipeHours + dto.RequiredOfficeHours;
+
+            existing.RequiredOfficeDaysPerWeek =
+                dto.RequiredOfficeDaysPerWeek;
 
             existing.IsActive = true;
 
@@ -49,14 +58,5 @@ namespace backend.Controllers
             return Ok(existing);
         }
 
-        [HttpGet]
-        public IActionResult GetConfiguration()
-        {
-            var config =
-                _context.ApprovalConfigurations
-                        .FirstOrDefault();
-
-            return Ok(config);
-        }
     }
 }

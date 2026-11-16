@@ -20,7 +20,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlite(connectionString));
 
 builder.Services.AddScoped<AttendanceValidationService>();
 builder.Services.AddScoped<TopUpApprovalService>();
