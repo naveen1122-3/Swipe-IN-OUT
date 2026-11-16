@@ -3,6 +3,7 @@ using backend.DTOs;
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers
 {
@@ -224,6 +225,94 @@ namespace backend.Controllers
             }
 
             return Ok(results.Select(result => result.Response));
+        }
+
+        [HttpGet("manager/{managerId:int}")]
+        public IActionResult GetManagerRequests(
+            int managerId,
+            [FromQuery] int? projectId)
+        {
+            if (managerId <= 0 || projectId is <= 0)
+            {
+                return BadRequest("Manager and project IDs must be positive.");
+            }
+
+            var requests = _context.TopUpRequests
+                .AsNoTracking()
+                .Where(request => request.ManagerId == managerId);
+
+            if (projectId.HasValue)
+            {
+                requests = requests.Where(request =>
+                    request.ProjectId == projectId.Value);
+            }
+
+            return Ok(requests
+                .OrderByDescending(request => request.RequestDate)
+                .ToList());
+        }
+
+        [HttpGet("employee/{employeeId:int}")]
+        public IActionResult GetEmployeeRequests(
+            int employeeId,
+            [FromQuery] int managerId,
+            [FromQuery] int projectId)
+        {
+            if (employeeId <= 0 || managerId <= 0 || projectId <= 0)
+            {
+                return BadRequest(
+                    "Employee, manager, and project IDs must be positive.");
+            }
+
+            return Ok(_context.TopUpRequests
+                .AsNoTracking()
+                .Where(request =>
+                    request.EmployeeId == employeeId
+                    && request.ManagerId == managerId
+                    && request.ProjectId == projectId)
+                .OrderByDescending(request => request.RequestDate)
+                .ToList());
+        }
+
+        [HttpPost("manager/{managerId:int}/requests/{requestId:int}/review")]
+        public IActionResult ReviewRequest(
+            int managerId,
+            int requestId,
+            [FromBody] TopUpReviewDto review)
+        {
+            if (managerId <= 0 || requestId <= 0
+                || review.ManagerId != managerId
+                || review.Approved is null)
+            {
+                return BadRequest(
+                    "A matching manager ID and an approval decision are required.");
+            }
+
+            var request = _context.TopUpRequests.FirstOrDefault(item =>
+                item.Id == requestId && item.ManagerId == managerId);
+
+            if (request == null)
+            {
+                return NotFound("Top-up request was not found for this manager.");
+            }
+
+            if (request.Status != "PENDING_MANAGER_REVIEW")
+            {
+                return Conflict("Only requests pending manager review can be decided.");
+            }
+
+            request.Status = review.Approved.Value
+                ? "MANUALLY_APPROVED"
+                : "MANUALLY_REJECTED";
+            request.Reason = string.IsNullOrWhiteSpace(review.Comment)
+                ? review.Approved.Value
+                    ? "Approved by manager."
+                    : "Rejected by manager."
+                : review.Comment.Trim();
+
+            _context.SaveChanges();
+
+            return Ok(request);
         }
     }
 }

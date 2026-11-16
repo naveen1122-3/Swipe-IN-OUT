@@ -118,5 +118,52 @@ namespace backend.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("status")]
+        public IActionResult GetAttendanceStatus(
+            [FromQuery] int employeeId,
+            [FromQuery] int managerId,
+            [FromQuery] int projectId)
+        {
+            if (employeeId <= 0 || managerId <= 0 || projectId <= 0)
+            {
+                return BadRequest(
+                    "Employee, manager, and project IDs must be positive.");
+            }
+
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+            var logs = _context.SwipeLogs
+                .Where(log =>
+                    log.EmployeeId == employeeId
+                    && log.ManagerId == managerId
+                    && log.ProjectId == projectId
+                    && log.SwipeTime >= today
+                    && log.SwipeTime < tomorrow)
+                .OrderBy(log => log.SwipeTime)
+                .ToList();
+            var lastSwipe = logs.LastOrDefault();
+            var attendance = _service.CalculateAttendance(logs);
+
+            return Ok(new
+            {
+                employeeId,
+                managerId,
+                projectId,
+                attendance.TotalOfficeHours,
+                attendance.AttendanceStatus,
+                HasOpenSwipe = string.Equals(
+                    lastSwipe?.SwipeType,
+                    "IN",
+                    StringComparison.OrdinalIgnoreCase),
+                NextSwipeType = string.Equals(
+                    lastSwipe?.SwipeType,
+                    "IN",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "OUT"
+                    : "IN",
+                SwipeCount = logs.Count
+            });
+        }
     }
 }
